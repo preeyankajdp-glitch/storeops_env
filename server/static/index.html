@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StoreOps Copilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">D-1 Store Analytics</p>
+          <h1>StoreOps Copilot</h1>
+          <p class="hero-text">
+            Ask store and inventory questions over the sampled D-1 operations report.
+            The answers come from a deterministic analytics engine, so the UI stays honest
+            about what the report can and cannot answer yet.
+          </p>
+          <div class="hero-actions">
+            <a href="/docs" target="_blank" rel="noreferrer">API Docs</a>
+            <a href="/office/capabilities" target="_blank" rel="noreferrer">Capabilities JSON</a>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <div class="stat-card">
+            <span class="stat-label">Dataset</span>
+            <span class="stat-value" id="datasetPath">Loading...</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Available Dates</span>
+            <span class="stat-value" id="availableDates">Loading...</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel query-panel">
+          <div class="panel-head">
+            <p class="eyebrow">Query</p>
+            <h2>Ask A Business Question</h2>
+          </div>
+          <form id="queryForm" class="query-form">
+            <label class="query-label" for="questionInput">Question</label>
+            <textarea
+              id="questionInput"
+              name="question"
+              rows="4"
+              placeholder="How much Burger Bun was used in Laxmi Nagar Store yesterday?"
+            ></textarea>
+            <div class="query-controls">
+              <label class="limit-field" for="maxRowsInput">
+                Result rows
+                <input id="maxRowsInput" name="maxRows" type="number" min="1" max="100" value="10" />
+              </label>
+              <button type="submit" id="askButton">Ask StoreOps</button>
+            </div>
+          </form>
+
+          <div class="sample-section">
+            <p class="sample-title">Try one of these</p>
+            <div class="sample-list" id="sampleList"></div>
+          </div>
+        </section>
+
+        <aside class="panel side-panel">
+          <div class="panel-head">
+            <p class="eyebrow">Dataset Guardrails</p>
+            <h2>What Works Today</h2>
+          </div>
+          <div class="capability-group">
+            <h3>Supported</h3>
+            <ul id="supportedList"></ul>
+          </div>
+          <div class="capability-group">
+            <h3>Not Supported Yet</h3>
+            <ul id="unsupportedList"></ul>
+          </div>
+        </aside>
+
+        <section class="panel answer-panel" id="answerPanel">
+          <div class="panel-head">
+            <p class="eyebrow">Answer</p>
+            <h2>Result</h2>
+          </div>
+          <div class="status-chip" id="statusChip">Waiting for a question</div>
+          <p class="answer-text" id="answerText">
+            Submit a question to see the answer, table output, evidence rows, and parsed filters.
+          </p>
+          <div class="meta-grid">
+            <div class="meta-card">
+              <span class="meta-label">Parsed Intent</span>
+              <span class="meta-value" id="parsedIntent">-</span>
+            </div>
+            <div class="meta-card">
+              <span class="meta-label">Applied Filters</span>
+              <span class="meta-value" id="appliedFilters">-</span>
+            </div>
+          </div>
+          <div class="notes-box" id="notesBox" hidden>
+            <p class="notes-title">Notes</p>
+            <ul id="notesList"></ul>
+          </div>
+        </section>
+
+        <section class="panel table-panel">
+          <div class="panel-head">
+            <p class="eyebrow">Main Output</p>
+            <h2>Answer Table</h2>
+          </div>
+          <div class="table-wrap" id="answerTableWrap">
+            <p class="empty-state">No result table yet.</p>
+          </div>
+        </section>
+
+        <section class="panel table-panel">
+          <div class="panel-head">
+            <p class="eyebrow">Evidence</p>
+            <h2>Source Rows</h2>
+          </div>
+          <div class="table-wrap" id="evidenceTableWrap">
+            <p class="empty-state">No evidence rows yet.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-storeops_env"
+version = "0.1.0"
+description = "StoreOps analytics environment for D-1 inventory and variance questions"
+requires-python = ">=3.10"
+dependencies = [
+    "openenv-core[core]>=0.2.2",
+    "openai>=1.40.0",
+    "pandas>=2.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+server = "storeops_env.server.app:main"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["storeops_env", "storeops_env.server"]
+package-dir = { "storeops_env" = ".", "storeops_env.server" = "server" }
+
+[tool.setuptools.package-data]
+"storeops_env" = ["data/*.csv"]
+"storeops_env.server" = ["static/*"]

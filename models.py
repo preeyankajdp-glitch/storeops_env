@@ -12,6 +12,7 @@ class StoreOpsAction(Action):
     tool: Literal[
         "filter_equals",
         "group_aggregate",
+        "compare_dates",
         "sort_limit",
         "reset_view",
         "submit",
@@ -24,6 +25,8 @@ class StoreOpsAction(Action):
         default=None,
         description="Aggregation function for group_aggregate.",
     )
+    date_from: str | None = Field(default=None, description="Earlier date used by compare_dates.")
+    date_to: str | None = Field(default=None, description="Later date used by compare_dates.")
     descending: bool = Field(
         default=True,
         description="Whether sorting should be descending.",

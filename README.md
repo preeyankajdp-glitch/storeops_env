@@ -25,7 +25,7 @@ This repository now supports two modes cleanly:
 
 ## Benchmark Tasks
 
-The submission benchmark currently exposes 5 task templates with explicit
+The submission benchmark currently exposes 6 task templates with explicit
 difficulty tiers:
 
 - `easy`: `store_item_qty_total`
@@ -33,6 +33,7 @@ difficulty tiers:
 - `medium`: `central_city_breakdown`
 - `hard`: `central_top_stores_for_item`
 - `hard`: `central_top_variance_stores_for_item`
+- `hard`: `central_top_delta_stores_for_item`
 
 Each task is graded by comparing the current dataframe view against a hidden
 target dataframe for the task. The environment normalizes each successful run to
@@ -53,6 +54,7 @@ The agent interacts by applying analytics actions to a working dataframe:
 
 - `filter_equals`
 - `group_aggregate`
+- `compare_dates`
 - `sort_limit`
 - `reset_view`
 - `submit`

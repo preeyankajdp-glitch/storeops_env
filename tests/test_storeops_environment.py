@@ -39,8 +39,9 @@ def test_seeded_reset_is_reproducible(monkeypatch):
 def test_solver_can_complete_multiple_task_templates(monkeypatch):
     env = _build_env(monkeypatch)
     solved_task_ids: set[str] = set()
+    total_tasks = len(env._tasks)
 
-    for seed in range(1, 25):
+    for seed in range(total_tasks):
         observation = env.reset(seed=seed)
         task_id = observation.metadata["task_id"]
         if task_id in solved_task_ids:
@@ -56,7 +57,7 @@ def test_solver_can_complete_multiple_task_templates(monkeypatch):
         assert result.status_message == "Correct result submitted."
         solved_task_ids.add(task_id)
 
-        if len(solved_task_ids) == 5:
+        if len(solved_task_ids) == 6:
             break
 
     assert solved_task_ids == {
@@ -65,6 +66,7 @@ def test_solver_can_complete_multiple_task_templates(monkeypatch):
         "central_top_stores_for_item",
         "central_city_breakdown",
         "central_top_variance_stores_for_item",
+        "central_top_delta_stores_for_item",
     }
 
 

@@ -39,6 +39,7 @@ class StoreOpsEnvironment(Environment):
     _ACTION_REWARD = {
         "filter_equals": 0.15,
         "group_aggregate": 0.20,
+        "compare_dates": 0.25,
         "sort_limit": 0.10,
         "reset_view": 0.0,
     }
@@ -48,6 +49,7 @@ class StoreOpsEnvironment(Environment):
         "central_top_stores_for_item": 0.40,
         "central_city_breakdown": 0.40,
         "central_top_variance_stores_for_item": 0.40,
+        "central_top_delta_stores_for_item": 0.50,
     }
 
     def __init__(self):
@@ -123,6 +125,21 @@ class StoreOpsEnvironment(Environment):
                     action.aggregation,
                 )
                 reward = self._ACTION_REWARD["group_aggregate"] if result.ok else 0.0
+                self._status_message = result.message
+        elif action.tool == "compare_dates":
+            if not action.group_by or not action.metric or not action.date_from or not action.date_to:
+                reward = 0.0
+                self._status_message = (
+                    "compare_dates requires group_by, metric, date_from, and date_to."
+                )
+            else:
+                result = self._engine.compare_dates(
+                    action.group_by,
+                    action.metric,
+                    action.date_from,
+                    action.date_to,
+                )
+                reward = self._ACTION_REWARD["compare_dates"] if result.ok else 0.0
                 self._status_message = result.message
         elif action.tool == "sort_limit":
             if not action.metric:
@@ -207,6 +224,7 @@ class StoreOpsEnvironment(Environment):
             .sort_values(["eod_date", "inventory_name"])
             .to_dict(orient="records")
         )
+        date_values = sorted(base["eod_date"].astype(str).unique().tolist())
 
         for record in triple_records[:12]:
             date_value = str(record["eod_date"])
@@ -348,6 +366,57 @@ class StoreOpsEnvironment(Environment):
                             f"on {date_value}?"
                         ),
                         target_view=self._normalize_target(top_variance_store_target),
+                    )
+                )
+
+        if len(date_values) >= 2:
+            date_from = date_values[-2]
+            date_to = date_values[-1]
+            inventory_values = (
+                base["inventory_name"].drop_duplicates().astype(str).sort_values().tolist()[:12]
+            )
+            for item_value in inventory_values:
+                filtered = base.loc[
+                    (base["inventory_name"].astype(str) == item_value)
+                    & (base["eod_date"].astype(str).isin([date_from, date_to]))
+                ].copy()
+                if filtered.empty:
+                    continue
+
+                grouped = (
+                    filtered.groupby(["store_name", "eod_date"], dropna=False)["qty"]
+                    .sum()
+                    .reset_index()
+                )
+                pivoted = (
+                    grouped.pivot(index="store_name", columns="eod_date", values="qty")
+                    .fillna(0.0)
+                    .reset_index()
+                )
+                if date_from not in pivoted.columns or date_to not in pivoted.columns:
+                    continue
+
+                target = (
+                    pivoted.rename(columns={date_from: "from_qty", date_to: "to_qty"})
+                    .assign(delta_qty=lambda frame: frame["to_qty"] - frame["from_qty"])
+                    .sort_values("delta_qty", ascending=False)
+                    .head(5)
+                    .reset_index(drop=True)
+                )
+                if target.empty:
+                    continue
+
+                tasks.append(
+                    TaskDefinition(
+                        task_id="central_top_delta_stores_for_item",
+                        role="Central Team",
+                        category="Trend",
+                        difficulty="hard",
+                        question=(
+                            f"Which 5 stores had the largest increase in D-1 quantity for "
+                            f"{item_value} from {date_from} to {date_to}?"
+                        ),
+                        target_view=self._normalize_target(target),
                     )
                 )
 

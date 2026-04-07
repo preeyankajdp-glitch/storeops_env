@@ -37,3 +37,15 @@ def test_variance_metric_is_derived():
 
     preview = engine.preview()
     assert len(preview) == 2
+
+
+def test_compare_dates_builds_delta_view():
+    engine = StoreOpsAnalyticsEngine.from_csv(_seed_path())
+
+    assert engine.filter_equals("inventory_name", "Burger Bun").ok
+    assert engine.compare_dates("store_name", "qty", "2026-04-03", "2026-04-04").ok
+    assert engine.sort_limit("delta_qty", descending=True, limit=5).ok
+
+    preview = engine.preview()
+    assert preview
+    assert "delta_qty" in preview[0]

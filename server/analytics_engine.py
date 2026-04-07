@@ -164,6 +164,64 @@ class StoreOpsAnalyticsEngine:
             f"Grouped by {group_by} with {aggregation} over {metric}.",
         )
 
+    def compare_dates(
+        self,
+        group_by: str,
+        metric: str,
+        date_from: str,
+        date_to: str,
+    ) -> EngineStepResult:
+        if "eod_date" not in self.current_df.columns:
+            return EngineStepResult(False, "compare_dates requires an eod_date column in the current view.")
+        if group_by not in self.current_df.columns:
+            return EngineStepResult(False, f"Unknown group_by column: {group_by}")
+        if metric not in self.current_df.columns:
+            return EngineStepResult(False, f"Unknown metric column: {metric}")
+
+        scoped = self.current_df.loc[
+            self.current_df["eod_date"].astype(str).isin([str(date_from), str(date_to)])
+        ].copy()
+        if scoped.empty:
+            return EngineStepResult(
+                False,
+                f"No rows were found for the requested dates {date_from!r} and {date_to!r}.",
+            )
+
+        grouped = (
+            scoped.groupby([group_by, "eod_date"], dropna=False)[metric]
+            .sum()
+            .reset_index()
+        )
+        pivoted = (
+            grouped.pivot(index=group_by, columns="eod_date", values=metric)
+            .fillna(0.0)
+            .reset_index()
+        )
+
+        from_column = str(date_from)
+        to_column = str(date_to)
+        if from_column not in pivoted.columns or to_column not in pivoted.columns:
+            return EngineStepResult(
+                False,
+                f"Could not compute both comparison dates {date_from!r} and {date_to!r}.",
+            )
+
+        pivoted = pivoted.rename(
+            columns={
+                from_column: f"from_{metric}",
+                to_column: f"to_{metric}",
+            }
+        )
+        pivoted[f"delta_{metric}"] = pivoted[f"to_{metric}"] - pivoted[f"from_{metric}"]
+        self.current_df = pivoted.reset_index(drop=True)
+        return EngineStepResult(
+            True,
+            (
+                f"Compared {metric} by {group_by} between {date_from!r} and {date_to!r} "
+                "and computed delta values."
+            ),
+        )
+
     def sort_limit(self, metric: str, descending: bool = True, limit: int = 10) -> EngineStepResult:
         if metric not in self.current_df.columns:
             return EngineStepResult(False, f"Unknown sort column: {metric}")

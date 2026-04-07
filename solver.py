@@ -27,6 +27,10 @@ def infer_task_id(question: str, hinted_task_id: str | None = None) -> str:
             "central_top_variance_stores_for_item",
             r"^Which 5 stores had the highest variance quantity for .+ on \d{4}-\d{2}-\d{2}\?$",
         ),
+        (
+            "central_top_delta_stores_for_item",
+            r"^Which 5 stores had the largest increase in D-1 quantity for .+ from \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}\?$",
+        ),
     ]
     for task_id, pattern in patterns:
         if re.fullmatch(pattern, question):
@@ -160,6 +164,32 @@ def heuristic_plan_actions(observation: StoreOpsObservation) -> list[StoreOpsAct
                     descending=True,
                     limit=5,
                 ),
+                StoreOpsAction(tool="submit"),
+            ]
+
+    if task_id == "central_top_delta_stores_for_item":
+        match = re.fullmatch(
+            (
+                r"Which 5 stores had the largest increase in D-1 quantity for (?P<item>.+) "
+                r"from (?P<date_from>\d{4}-\d{2}-\d{2}) to (?P<date_to>\d{4}-\d{2}-\d{2})\?"
+            ),
+            question,
+        )
+        if match:
+            return [
+                StoreOpsAction(
+                    tool="filter_equals",
+                    column="inventory_name",
+                    value=match.group("item"),
+                ),
+                StoreOpsAction(
+                    tool="compare_dates",
+                    group_by="store_name",
+                    metric="qty",
+                    date_from=match.group("date_from"),
+                    date_to=match.group("date_to"),
+                ),
+                StoreOpsAction(tool="sort_limit", metric="delta_qty", descending=True, limit=5),
                 StoreOpsAction(tool="submit"),
             ]
 

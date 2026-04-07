@@ -61,6 +61,7 @@ SYSTEM_PROMPT = textwrap.dedent(
       "actions": [
         {"tool": "filter_equals", "column": "eod_date", "value": "2026-04-04"},
         {"tool": "group_aggregate", "group_by": "store_name", "metric": "qty", "aggregation": "sum"},
+        {"tool": "compare_dates", "group_by": "store_name", "metric": "qty", "date_from": "2026-04-03", "date_to": "2026-04-04"},
         {"tool": "sort_limit", "metric": "sum_qty", "descending": true, "limit": 5},
         {"tool": "submit"}
       ]
@@ -69,6 +70,7 @@ SYSTEM_PROMPT = textwrap.dedent(
     Allowed tools:
     - filter_equals
     - group_aggregate
+    - compare_dates
     - sort_limit
     - reset_view
     - submit

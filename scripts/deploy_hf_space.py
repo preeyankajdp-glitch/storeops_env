@@ -106,10 +106,11 @@ def main() -> None:
         token=token,
     )
 
+    subdomain = repo_id.replace("_", "-").replace("/", "-")
     print(f"Space repo: {repo_url}")
     print(f"Upload commit: {commit_info.commit_url}")
     print(f"Space URL: https://huggingface.co/spaces/{repo_id}")
-    print(f"Space app URL: https://{repo_id.replace('/', '-')}.hf.space")
+    print(f"Space app URL: https://{subdomain}.hf.space")
 
 
 if __name__ == "__main__":

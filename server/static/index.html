@@ -19,10 +19,33 @@
           <p class="eyebrow">D-1 Store Analytics</p>
           <h1>StoreOps Copilot</h1>
           <p class="hero-text">
-            Ask store and inventory questions over the sampled D-1 operations report.
-            The answers come from a deterministic analytics engine, so the UI stays honest
-            about what the report can and cannot answer yet.
+            Ask simple questions about yesterday's store and inventory data.
+            Answers come from a deterministic analytics engine, so the tool stays clear
+            about what the report can answer and what it cannot answer yet.
           </p>
+          <div class="hero-steps">
+            <div class="step-card">
+              <span class="step-number">1</span>
+              <div>
+                <strong>Pick a sample</strong>
+                <p>Start with one of the example questions below.</p>
+              </div>
+            </div>
+            <div class="step-card">
+              <span class="step-number">2</span>
+              <div>
+                <strong>Ask in plain English</strong>
+                <p>Use store, item, city, quantity, or variance language.</p>
+              </div>
+            </div>
+            <div class="step-card">
+              <span class="step-number">3</span>
+              <div>
+                <strong>Review the result</strong>
+                <p>See the answer, table output, and source evidence together.</p>
+              </div>
+            </div>
+          </div>
           <div class="hero-actions">
             <a href="/docs" target="_blank" rel="noreferrer">API Docs</a>
             <a href="/office/capabilities" target="_blank" rel="noreferrer">Capabilities JSON</a>
@@ -37,22 +60,32 @@
             <span class="stat-label">Available Dates</span>
             <span class="stat-value" id="availableDates">Loading...</span>
           </div>
+          <div class="stat-card">
+            <span class="stat-label">Best For</span>
+            <span class="stat-value">
+              Usage totals, top stores, city splits, and variance questions
+            </span>
+          </div>
         </div>
       </header>
 
       <main class="layout">
         <section class="panel query-panel">
           <div class="panel-head">
-            <p class="eyebrow">Query</p>
+            <p class="eyebrow">Question</p>
             <h2>Ask A Business Question</h2>
           </div>
+          <p class="panel-intro">
+            Try questions like "How much Inventory_001 was used in Store_001 yesterday?"
+            or "Which stores had the highest D-1 quantity for Inventory_002?"
+          </p>
           <form id="queryForm" class="query-form">
             <label class="query-label" for="questionInput">Question</label>
             <textarea
               id="questionInput"
               name="question"
               rows="4"
-              placeholder="How much Burger Bun was used in Laxmi Nagar Store yesterday?"
+              placeholder="How much Inventory_001 was used in Store_001 yesterday?"
             ></textarea>
             <div class="query-controls">
               <label class="limit-field" for="maxRowsInput">
@@ -64,22 +97,26 @@
           </form>
 
           <div class="sample-section">
-            <p class="sample-title">Try one of these</p>
+            <p class="sample-title">Example questions</p>
             <div class="sample-list" id="sampleList"></div>
           </div>
         </section>
 
         <aside class="panel side-panel">
           <div class="panel-head">
-            <p class="eyebrow">Dataset Guardrails</p>
-            <h2>What Works Today</h2>
+            <p class="eyebrow">Help</p>
+            <h2>What This Tool Can Do</h2>
           </div>
+          <p class="panel-intro">
+            This UI is built for D-1 analytics, not live inventory. It works best for structured
+            quantity and variance questions.
+          </p>
           <div class="capability-group">
-            <h3>Benchmark Tiers</h3>
+            <h3>Question Levels</h3>
             <ul>
               <li><strong>Easy:</strong> single store, single item totals</li>
               <li><strong>Medium:</strong> variance ranking and city breakdowns</li>
-              <li><strong>Hard:</strong> cross-store ranking and date-over-date deltas</li>
+              <li><strong>Hard:</strong> cross-store ranking and date-over-date change</li>
             </ul>
           </div>
           <div class="capability-group">
@@ -91,7 +128,7 @@
             </ul>
           </div>
           <div class="capability-group">
-            <h3>Supported</h3>
+            <h3>Supported Now</h3>
             <ul id="supportedList"></ul>
           </div>
           <div class="capability-group">
@@ -103,7 +140,7 @@
         <section class="panel answer-panel" id="answerPanel">
           <div class="panel-head">
             <p class="eyebrow">Answer</p>
-            <h2>Result</h2>
+            <h2>Result Summary</h2>
           </div>
           <div class="status-chip" id="statusChip">Waiting for a question</div>
           <p class="answer-text" id="answerText">

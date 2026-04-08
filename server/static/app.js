@@ -30,7 +30,7 @@ const elements = {
 
 function setBusy(isBusy) {
   elements.askButton.disabled = isBusy;
-  elements.askButton.textContent = isBusy ? "Thinking..." : "Ask StoreOps";
+  elements.askButton.textContent = isBusy ? "Loading..." : "Get Answer";
 }
 
 function setStatus(text, kind = "") {
@@ -148,7 +148,7 @@ async function submitQuestion(event) {
   }
 
   setBusy(true);
-  setStatus("Querying the analytics engine...", "loading");
+  setStatus("Looking up the answer...", "loading");
   elements.answerPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 
   try {
@@ -174,11 +174,11 @@ async function submitQuestion(event) {
     renderTable(elements.answerTableWrap, payload.table);
     renderTable(elements.evidenceTableWrap, payload.evidence_rows);
     setStatus(
-      payload.supported ? "Supported question" : "Question outside current dataset scope",
+      payload.supported ? "Answer ready" : "Question outside current dataset scope",
       payload.supported ? "supported" : "unsupported",
     );
   } catch (error) {
-    elements.answerText.textContent = `The UI could not reach the StoreOps API cleanly. ${error.message || ""}`.trim();
+    elements.answerText.textContent = `The assistant could not reach the backend cleanly. ${error.message || ""}`.trim();
     elements.parsedIntent.textContent = "-";
     elements.appliedFilters.textContent = "-";
     renderNotes([]);
@@ -195,10 +195,10 @@ async function init() {
   elements.queryForm.addEventListener("submit", submitQuestion);
   try {
     await loadCapabilities();
-    setStatus("Ready for questions");
+    setStatus("Ready");
   } catch (error) {
     renderSamples(fallbackSampleQuestions);
-    setStatus("Capabilities failed to load", "unsupported");
+    setStatus("Setup information failed to load", "unsupported");
     console.error(error);
   }
 }

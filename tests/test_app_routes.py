@@ -51,7 +51,7 @@ def test_root_serves_ui_with_success_status():
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "StoreOps Copilot" in response.text
+    assert "StoreOps Assistant" in response.text
 
 
 def test_root_head_returns_success():
@@ -72,4 +72,4 @@ def test_ui_route_serves_html():
     response = client.get("/ui")
 
     assert response.status_code == 200
-    assert "StoreOps Copilot" in response.text
+    assert "StoreOps Assistant" in response.text

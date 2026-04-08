@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StoreOps Copilot</title>
+    <title>StoreOps Assistant</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,18 +17,17 @@
       <header class="hero">
         <div class="hero-copy">
           <p class="eyebrow">D-1 Store Analytics</p>
-          <h1>StoreOps Copilot</h1>
+          <h1>StoreOps Assistant</h1>
           <p class="hero-text">
-            Ask simple questions about yesterday's store and inventory data.
-            Answers come from a deterministic analytics engine, so the tool stays clear
-            about what the report can answer and what it cannot answer yet.
+            A simple internal assistant for yesterday's store and inventory analytics.
+            Ask a question, review the result table, and check the supporting rows.
           </p>
           <div class="hero-steps">
             <div class="step-card">
               <span class="step-number">1</span>
               <div>
-                <strong>Pick a sample</strong>
-                <p>Start with one of the example questions below.</p>
+                <strong>Choose a question</strong>
+                <p>Start with an example or type your own.</p>
               </div>
             </div>
             <div class="step-card">
@@ -41,29 +40,29 @@
             <div class="step-card">
               <span class="step-number">3</span>
               <div>
-                <strong>Review the result</strong>
-                <p>See the answer, table output, and source evidence together.</p>
+                <strong>Review the answer</strong>
+                <p>See the summary, table output, and supporting rows together.</p>
               </div>
             </div>
           </div>
           <div class="hero-actions">
-            <a href="/docs" target="_blank" rel="noreferrer">API Docs</a>
-            <a href="/office/capabilities" target="_blank" rel="noreferrer">Capabilities JSON</a>
+            <a href="#queryForm">Start Asking</a>
+            <a href="/docs" target="_blank" rel="noreferrer">Technical Docs</a>
           </div>
         </div>
         <div class="hero-panel">
           <div class="stat-card">
-            <span class="stat-label">Dataset</span>
+            <span class="stat-label">Data Source</span>
             <span class="stat-value" id="datasetPath">Loading...</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Available Dates</span>
+            <span class="stat-label">Available Report Dates</span>
             <span class="stat-value" id="availableDates">Loading...</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Best For</span>
+            <span class="stat-label">Useful For</span>
             <span class="stat-value">
-              Usage totals, top stores, city splits, and variance questions
+              Usage totals, store rankings, city splits, and variance questions
             </span>
           </div>
         </div>
@@ -73,11 +72,11 @@
         <section class="panel query-panel">
           <div class="panel-head">
             <p class="eyebrow">Question</p>
-            <h2>Ask A Business Question</h2>
+            <h2>Ask A Store Question</h2>
           </div>
           <p class="panel-intro">
-            Try questions like "How much Inventory_001 was used in Store_001 yesterday?"
-            or "Which stores had the highest D-1 quantity for Inventory_002?"
+            Ask about item usage, store comparisons, city splits, or variance.
+            Keep the question tied to the available D-1 report data.
           </p>
           <form id="queryForm" class="query-form">
             <label class="query-label" for="questionInput">Question</label>
@@ -92,39 +91,39 @@
                 Result rows
                 <input id="maxRowsInput" name="maxRows" type="number" min="1" max="100" value="10" />
               </label>
-              <button type="submit" id="askButton">Ask StoreOps</button>
+              <button type="submit" id="askButton">Get Answer</button>
             </div>
           </form>
 
           <div class="sample-section">
-            <p class="sample-title">Example questions</p>
+            <p class="sample-title">Suggested questions</p>
             <div class="sample-list" id="sampleList"></div>
           </div>
         </section>
 
         <aside class="panel side-panel">
           <div class="panel-head">
-            <p class="eyebrow">Help</p>
-            <h2>What This Tool Can Do</h2>
+            <p class="eyebrow">Guide</p>
+            <h2>What This Assistant Can Do</h2>
           </div>
           <p class="panel-intro">
-            This UI is built for D-1 analytics, not live inventory. It works best for structured
-            quantity and variance questions.
+            This assistant works on D-1 historical report data, not live inventory.
+            It works best for clear quantity and variance questions.
           </p>
           <div class="capability-group">
-            <h3>Question Levels</h3>
+            <h3>Good Question Types</h3>
             <ul>
-              <li><strong>Easy:</strong> single store, single item totals</li>
-              <li><strong>Medium:</strong> variance ranking and city breakdowns</li>
-              <li><strong>Hard:</strong> cross-store ranking and date-over-date change</li>
+              <li><strong>Store totals:</strong> one store and one item</li>
+              <li><strong>Rankings:</strong> top stores or top variance items</li>
+              <li><strong>Breakdowns:</strong> city-wise or date-over-date comparisons</li>
             </ul>
           </div>
           <div class="capability-group">
-            <h3>Agent Modes</h3>
+            <h3>How Answers Are Generated</h3>
             <ul>
-              <li><strong>Heuristic:</strong> deterministic baseline for submission</li>
-              <li><strong>LLM:</strong> optional OpenAI-compatible planner</li>
-              <li><strong>Auto:</strong> tries LLM first, then falls back</li>
+              <li><strong>Deterministic engine:</strong> used for the final table and result</li>
+              <li><strong>Benchmark agent:</strong> used for the hackathon environment behind the scenes</li>
+              <li><strong>User view:</strong> focused on simple business questions and evidence rows</li>
             </ul>
           </div>
           <div class="capability-group">
@@ -140,15 +139,15 @@
         <section class="panel answer-panel" id="answerPanel">
           <div class="panel-head">
             <p class="eyebrow">Answer</p>
-            <h2>Result Summary</h2>
+            <h2>Answer Summary</h2>
           </div>
           <div class="status-chip" id="statusChip">Waiting for a question</div>
           <p class="answer-text" id="answerText">
-            Submit a question to see the answer, table output, evidence rows, and parsed filters.
+            Ask a question to see the summary, answer table, evidence rows, and applied filters.
           </p>
           <div class="meta-grid">
             <div class="meta-card">
-              <span class="meta-label">Parsed Intent</span>
+              <span class="meta-label">Question Type</span>
               <span class="meta-value" id="parsedIntent">-</span>
             </div>
             <div class="meta-card">
@@ -165,7 +164,7 @@
         <section class="panel table-panel">
           <div class="panel-head">
             <p class="eyebrow">Main Output</p>
-            <h2>Answer Table</h2>
+            <h2>Result Table</h2>
           </div>
           <div class="table-wrap" id="answerTableWrap">
             <p class="empty-state">No result table yet.</p>

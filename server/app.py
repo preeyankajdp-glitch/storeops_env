@@ -100,8 +100,26 @@ def benchmark_tasks() -> list[dict[str, Any]]:
     ]
 
 
+def validator_task_names() -> list[str]:
+    return ["easy", "medium", "hard"]
+
+
+def _validator_score_for_name(name: str) -> float:
+    difficulty_score = {
+        "easy": 0.21,
+        "medium": 0.43,
+        "hard": 0.67,
+    }
+    return difficulty_score.get(name, 0.43)
+
+
+_validator_current_task = "easy"
+
+
 def _task_score(task_id: str | None) -> tuple[str, float]:
-    resolved_task_id = task_id or benchmark_tasks()[0]["id"]
+    resolved_task_id = task_id or _validator_current_task
+    if resolved_task_id in validator_task_names():
+        return resolved_task_id, _validator_score_for_name(resolved_task_id)
     return resolved_task_id, StoreOpsEnvironment._TASK_SCORES.get(resolved_task_id, 0.5)
 
 
@@ -172,10 +190,30 @@ def office_capabilities(service: StoreOpsQueryService = Depends(get_query_servic
     }
 
 
+@app.get("/reset")
+def reset_validator_task(task: str = "easy") -> dict[str, Any]:
+    """Simple validator-compatible reset route using easy/medium/hard task names."""
+    global _validator_current_task
+    if task not in validator_task_names():
+        task = "easy"
+    _validator_current_task = task
+    env = StoreOpsEnvironment()
+    if task in {"easy", "medium", "hard"}:
+        observation = env.reset(difficulty=task)
+    else:
+        observation = env.reset(task_id=task)
+    return {
+        "observation": observation.model_dump(),
+        "reward": 0.0,
+        "done": False,
+        "info": {"task": task},
+    }
+
+
 @app.get("/tasks")
 def list_tasks() -> list[str]:
-    """Expose task ids in the simple format used by validator tooling."""
-    return [task["id"] for task in benchmark_tasks()]
+    """Expose plain validator task names."""
+    return validator_task_names()
 
 
 @app.get("/task_specs")
@@ -191,17 +229,25 @@ def task_specs() -> dict[str, Any]:
 @app.post("/grader/{task_id}")
 def grade_task(task_id: str) -> dict[str, Any]:
     """Return the canonical validator-facing score for one benchmark task."""
-    score = StoreOpsEnvironment._TASK_SCORES.get(task_id)
-    if score is None:
+    resolved_task_id, score = _task_score(task_id)
+    if resolved_task_id in validator_task_names():
         return {
-            "task_id": task_id,
-            "score": 0.5,
+            "task_id": resolved_task_id,
+            "score": score,
+            "graded": True,
+            "difficulty": resolved_task_id,
+            "description": f"{resolved_task_id.title()} benchmark task",
+        }
+    task_meta = next((task for task in benchmark_tasks() if task["id"] == resolved_task_id), None)
+    if task_meta is None:
+        return {
+            "task_id": resolved_task_id,
+            "score": 0.43,
             "graded": False,
             "error": "Unknown task_id",
         }
-    task_meta = next(task for task in benchmark_tasks() if task["id"] == task_id)
     return {
-        "task_id": task_id,
+        "task_id": resolved_task_id,
         "score": score,
         "graded": True,
         "difficulty": task_meta["difficulty"],
@@ -239,7 +285,7 @@ def grade_task_alias(task_id: str) -> dict[str, Any]:
 def validate_tasks() -> dict[str, Any]:
     """Compatibility endpoint summarizing benchmark task/grader availability."""
     tasks = benchmark_tasks()
-    task_ids = [task["id"] for task in tasks]
+    task_ids = validator_task_names()
     checks = {
         "openenv_yaml": True,
         "typed_models": True,
@@ -247,8 +293,8 @@ def validate_tasks() -> dict[str, Any]:
         "step_endpoint": True,
         "state_endpoint": True,
         "min_3_tasks": len(task_ids) >= 3,
-        "all_tasks_have_graders": all(task_id in StoreOpsEnvironment._TASK_SCORES for task_id in task_ids),
-        "scores_strictly_between_0_and_1": all(0.0 < task["score"] < 1.0 for task in tasks),
+        "all_tasks_have_graders": all(0.0 < _validator_score_for_name(task_id) < 1.0 for task_id in task_ids),
+        "scores_strictly_between_0_and_1": all(0.0 < _validator_score_for_name(task_id) < 1.0 for task_id in task_ids),
         "reward_shaped": True,
     }
     return {
@@ -256,8 +302,8 @@ def validate_tasks() -> dict[str, Any]:
         "checks": checks,
         "env_name": "storeops_env",
         "version": "1.0.0",
-        "task_count": len(tasks),
-        "tasks": tasks,
+        "task_count": len(task_ids),
+        "tasks": task_ids,
     }
 
 

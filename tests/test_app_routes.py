@@ -83,7 +83,7 @@ def test_tasks_route_exposes_multiple_validator_tasks():
     assert response.status_code == 200
     payload = response.json()
     assert len(payload) >= 3
-    assert "store_item_qty_total" in payload
+    assert payload == ["easy", "medium", "hard"]
 
 
 def test_grader_route_returns_strict_in_range_score():
@@ -118,3 +118,14 @@ def test_grade_alias_route_returns_strict_score():
     assert response.status_code == 200
     payload = response.json()
     assert 0.0 < payload["score"] < 1.0
+
+
+def test_get_reset_accepts_validator_task_names():
+    client = TestClient(app)
+
+    response = client.get("/reset", params={"task": "medium"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["done"] is False
+    assert payload["info"]["task"] == "medium"

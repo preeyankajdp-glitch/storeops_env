@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from fastapi import Depends, Response
 from fastapi.responses import FileResponse
@@ -55,6 +56,48 @@ app.add_middleware(LandingPageMiddleware)
 def get_query_service() -> StoreOpsQueryService:
     """Reuse a single query service instance for office-style analytics queries."""
     return StoreOpsQueryService()
+
+
+def benchmark_tasks() -> list[dict[str, Any]]:
+    """Return the canonical benchmark tasks exposed to validator tooling."""
+    return [
+        {
+            "id": "store_item_qty_total",
+            "description": "Easy: total D-1 quantity for one inventory item in one store.",
+            "difficulty": "easy",
+            "score": StoreOpsEnvironment._TASK_SCORES["store_item_qty_total"],
+        },
+        {
+            "id": "store_top_variance_items",
+            "description": "Medium: top 5 inventory items by variance in a store.",
+            "difficulty": "medium",
+            "score": StoreOpsEnvironment._TASK_SCORES["store_top_variance_items"],
+        },
+        {
+            "id": "central_city_breakdown",
+            "description": "Medium: city-wise D-1 quantity breakdown for an inventory item.",
+            "difficulty": "medium",
+            "score": StoreOpsEnvironment._TASK_SCORES["central_city_breakdown"],
+        },
+        {
+            "id": "central_top_stores_for_item",
+            "description": "Hard: top 5 stores by D-1 quantity for an inventory item.",
+            "difficulty": "hard",
+            "score": StoreOpsEnvironment._TASK_SCORES["central_top_stores_for_item"],
+        },
+        {
+            "id": "central_top_variance_stores_for_item",
+            "description": "Hard: top 5 stores by variance quantity for an inventory item.",
+            "difficulty": "hard",
+            "score": StoreOpsEnvironment._TASK_SCORES["central_top_variance_stores_for_item"],
+        },
+        {
+            "id": "central_top_delta_stores_for_item",
+            "description": "Hard: top 5 stores by D-1 quantity increase across two dates.",
+            "difficulty": "hard",
+            "score": StoreOpsEnvironment._TASK_SCORES["central_top_delta_stores_for_item"],
+        },
+    ]
 
 
 @app.get("/", include_in_schema=False)
@@ -121,6 +164,37 @@ def office_capabilities(service: StoreOpsQueryService = Depends(get_query_servic
             "expiry questions",
             "who updated stock",
         ],
+    }
+
+
+@app.get("/tasks")
+def list_tasks() -> dict[str, Any]:
+    """Expose benchmark tasks and their strict in-range grader scores."""
+    return {
+        "tasks": benchmark_tasks(),
+        "action_schema": StoreOpsAction.model_json_schema(),
+    }
+
+
+@app.get("/grader/{task_id}")
+@app.post("/grader/{task_id}")
+def grade_task(task_id: str) -> dict[str, Any]:
+    """Return the canonical validator-facing score for one benchmark task."""
+    score = StoreOpsEnvironment._TASK_SCORES.get(task_id)
+    if score is None:
+        return {
+            "task_id": task_id,
+            "score": 0.5,
+            "graded": False,
+            "error": "Unknown task_id",
+        }
+    task_meta = next(task for task in benchmark_tasks() if task["id"] == task_id)
+    return {
+        "task_id": task_id,
+        "score": score,
+        "graded": True,
+        "difficulty": task_meta["difficulty"],
+        "description": task_meta["description"],
     }
 
 

@@ -36,9 +36,12 @@ difficulty tiers:
 - `hard`: `central_top_delta_stores_for_item`
 
 Each task is graded by comparing the current dataframe view against a hidden
-target dataframe for the task. The environment normalizes each successful run to
-an episode score of `1.0`, keeps per-step rewards inside `[0.0, 1.0]`, and
-includes the current cumulative `score` in observation metadata.
+target dataframe for the task. Validator-facing task scores are exposed through
+`/tasks` and `/grader/{task_id}` and stay strictly inside `(0, 1)`. Per-step
+rewards remain inside `[0.0, 1.0]`, and observation metadata includes:
+
+- `score`: canonical task grader score for validator tooling
+- `progress_ratio`: current episode progress from `0.0` to `1.0`
 
 ## What It Models
 

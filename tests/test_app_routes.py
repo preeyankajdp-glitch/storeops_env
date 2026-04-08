@@ -73,3 +73,25 @@ def test_ui_route_serves_html():
 
     assert response.status_code == 200
     assert "StoreOps Assistant" in response.text
+
+
+def test_tasks_route_exposes_multiple_validator_tasks():
+    client = TestClient(app)
+
+    response = client.get("/tasks")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["tasks"]) >= 3
+    assert all(0.0 < task["score"] < 1.0 for task in payload["tasks"])
+
+
+def test_grader_route_returns_strict_in_range_score():
+    client = TestClient(app)
+
+    response = client.post("/grader/store_item_qty_total")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["graded"] is True
+    assert 0.0 < payload["score"] < 1.0

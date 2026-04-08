@@ -104,4 +104,17 @@ def test_validate_route_exposes_task_summary():
     assert response.status_code == 200
     payload = response.json()
     assert payload["valid"] is True
+    assert payload["checks"]["min_3_tasks"] is True
+    assert payload["checks"]["all_tasks_have_graders"] is True
+    assert payload["checks"]["scores_strictly_between_0_and_1"] is True
     assert payload["task_count"] >= 3
+
+
+def test_grade_alias_route_returns_strict_score():
+    client = TestClient(app)
+
+    response = client.get("/grade/store_item_qty_total")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert 0.0 < payload["score"] < 1.0

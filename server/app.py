@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import Depends, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 try:
     from openenv.core.env_server.http_server import create_app
@@ -36,6 +37,20 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+class LandingPageMiddleware(BaseHTTPMiddleware):
+    """Route Space landing URLs to the custom office UI instead of the generic OpenEnv web page."""
+
+    async def dispatch(self, request, call_next):
+        if request.method == "GET" and request.url.path in {"/", "/web", "/web/"}:
+            return FileResponse(STATIC_DIR / "index.html")
+        if request.method == "HEAD" and request.url.path in {"/", "/web", "/web/"}:
+            return Response(status_code=200)
+        return await call_next(request)
+
+
+app.add_middleware(LandingPageMiddleware)
+
+
 @lru_cache(maxsize=1)
 def get_query_service() -> StoreOpsQueryService:
     """Reuse a single query service instance for office-style analytics queries."""
@@ -51,6 +66,28 @@ def home() -> FileResponse:
 @app.head("/", include_in_schema=False)
 def home_head() -> Response:
     """Allow lightweight uptime checks against the Space root."""
+    return Response(status_code=200)
+
+
+@app.get("/web", include_in_schema=False)
+def office_ui_web() -> FileResponse:
+    """Serve the browser UI for Hugging Face Space wrappers that point at /web."""
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/web/", include_in_schema=False)
+def office_ui_web_slash() -> FileResponse:
+    """Serve the browser UI for Hugging Face Space wrappers that point at /web/."""
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.head("/web", include_in_schema=False)
+def office_ui_web_head() -> Response:
+    return Response(status_code=200)
+
+
+@app.head("/web/", include_in_schema=False)
+def office_ui_web_slash_head() -> Response:
     return Response(status_code=200)
 
 

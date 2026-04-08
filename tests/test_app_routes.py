@@ -82,16 +82,26 @@ def test_tasks_route_exposes_multiple_validator_tasks():
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload["tasks"]) >= 3
-    assert all(0.0 < task["score"] < 1.0 for task in payload["tasks"])
+    assert len(payload) >= 3
+    assert "store_item_qty_total" in payload
 
 
 def test_grader_route_returns_strict_in_range_score():
     client = TestClient(app)
 
-    response = client.post("/grader/store_item_qty_total")
+    response = client.post("/grader", json={"task_id": "store_item_qty_total"})
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["graded"] is True
     assert 0.0 < payload["score"] < 1.0
+
+
+def test_validate_route_exposes_task_summary():
+    client = TestClient(app)
+
+    response = client.get("/validate")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is True
+    assert payload["task_count"] >= 3

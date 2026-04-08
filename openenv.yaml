@@ -4,22 +4,36 @@ type: space
 runtime: fastapi
 app: server.app:app
 port: 8000
+description: StoreOps OpenEnv benchmark for D-1 store analytics.
 tasks:
   - id: store_item_qty_total
     description: "Easy: total D-1 quantity for one inventory item in one store."
     difficulty: easy
+    success_threshold: 0.2
   - id: store_top_variance_items
     description: "Medium: top 5 inventory items by variance in a store."
     difficulty: medium
+    success_threshold: 0.4
   - id: central_city_breakdown
     description: "Medium: city-wise D-1 quantity breakdown for an inventory item."
     difficulty: medium
+    success_threshold: 0.45
   - id: central_top_stores_for_item
     description: "Hard: top 5 stores by D-1 quantity for an inventory item."
     difficulty: hard
+    success_threshold: 0.65
   - id: central_top_variance_stores_for_item
     description: "Hard: top 5 stores by variance quantity for an inventory item."
     difficulty: hard
+    success_threshold: 0.7
   - id: central_top_delta_stores_for_item
     description: "Hard: top 5 stores by D-1 quantity increase across two dates."
     difficulty: hard
+    success_threshold: 0.85
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  grader: GET /grader
+  validate: GET /validate

@@ -75,7 +75,14 @@ class StoreOpsEnvironment(Environment):
         self._tasks = self._build_tasks()
         self._task_rotation = self._build_task_rotation(self._tasks)
 
-    def reset(self, seed: int | None = None) -> StoreOpsObservation:
+    def reset(
+        self,
+        seed: int | None = None,
+        episode_id: str | None = None,
+        task_id: str | None = None,
+        difficulty: str | None = None,
+        **_: Any,
+    ) -> StoreOpsObservation:
         """Reset to a fresh analytics task."""
         if seed is not None:
             self._rng.seed(seed)
@@ -87,13 +94,27 @@ class StoreOpsEnvironment(Environment):
         self._terminated = False
         self._score = 0.0
         self._status_message = "Task loaded. Use analytics actions to derive the answer."
-        if seed is not None:
+
+        if task_id is not None:
+            matching = [task for task in self._tasks if task.task_id == task_id]
+            if not matching:
+                raise ValueError(f"Unknown task_id: {task_id}")
+            self._task = matching[0]
+        elif difficulty is not None:
+            matching = [task for task in self._task_rotation if task.difficulty == difficulty]
+            if not matching:
+                raise ValueError(f"Unknown difficulty: {difficulty}")
+            task_index = self._task_cursor % len(matching)
+            self._task = matching[task_index]
+            self._task_cursor += 1
+        elif seed is not None:
             task_index = seed % len(self._tasks)
             self._task = self._tasks[task_index]
         else:
             task_index = self._task_cursor % len(self._task_rotation)
             self._task = self._task_rotation[task_index]
             self._task_cursor += 1
+
         self._state = State(
             episode_id=str(uuid4()),
             step_count=0,

@@ -22,15 +22,23 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import sys
 import textwrap
 from typing import List
 
 from openai import OpenAI
 
 try:
-    from storeops_env import StoreOpsAction, StoreOpsEnv, StoreOpsObservation
+    from storeops_env import (
+        DEFAULT_TASK_ORDER,
+        StoreOpsAction,
+        StoreOpsEnv,
+        StoreOpsObservation,
+        get_task_spec,
+    )
     from storeops_env.solver import format_action, heuristic_plan_actions, infer_task_id
 except ModuleNotFoundError:
+    from __init__ import DEFAULT_TASK_ORDER, get_task_spec
     from client import StoreOpsEnv
     from models import StoreOpsAction, StoreOpsObservation
     from solver import format_action, heuristic_plan_actions, infer_task_id
@@ -46,6 +54,7 @@ API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 TEMPERATURE = 0.0
 MAX_TOKENS = 250
 MAX_STEPS = 8
+SCORE_EPSILON = float(os.getenv("OPENENV_SCORE_EPSILON", "0.000001"))
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
@@ -92,6 +101,10 @@ def log_step(step: int, action: str, reward: float, done: bool, error: str | Non
 def log_end(success: bool, steps: int, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
     print(f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}", flush=True)
+
+
+def bounded_task_score(score: float) -> float:
+    return min(1.0 - SCORE_EPSILON, max(SCORE_EPSILON, score))
 
 
 def _strip_code_fences(raw_text: str) -> str:
@@ -213,65 +226,80 @@ async def create_env() -> StoreOpsEnv:
 
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY) if API_KEY else None
-
-    env = await create_env()
-    rewards: List[float] = []
-    steps_taken = 0
-    success = False
-    history: List[str] = []
     model_label = MODEL_NAME if client and PLANNER_MODE in {"llm", "auto"} else "heuristic"
-    result = None
+    run_failed = False
 
-    try:
-        result = await env.reset(seed=RESET_SEED)
-        observation = result.observation
-        task_name = infer_task_id(
-            observation.question,
-            str(observation.metadata.get("task_id", "")),
-        ) or "storeops_task"
-        log_start(task=task_name, env=BENCHMARK, model=model_label)
+    for index, public_task_id in enumerate(DEFAULT_TASK_ORDER):
+        env = await create_env()
+        rewards: List[float] = []
+        steps_taken = 0
+        success = False
+        history: List[str] = []
+        result = None
+        task_spec = get_task_spec(public_task_id)
 
-        for step in range(1, MAX_STEPS + 1):
-            if result.done:
-                break
-
-            action = choose_action(
-                observation,
-                client=client,
-                planner_mode=PLANNER_MODE,
-                step=step,
-                history=history,
-            )
-            result = await env.step(action)
-            steps_taken += 1
-            reward = float(result.reward or 0.0)
-            rewards.append(reward)
-            observation = result.observation
-            error = None
-            if reward == 0.0 and observation.status_message not in {
-                "Correct result submitted.",
-                "Reset the working dataframe to the full dataset.",
-            }:
-                error = observation.status_message
-
-            log_step(
-                step=steps_taken,
-                action=format_action(action),
-                reward=reward,
-                done=result.done,
-                error=error,
-            )
-            history.append(f"Step {step}: {format_action(action)} -> reward {reward:.2f}")
-
-            if result.done:
-                break
-
-        success = result.done and result.observation.status_message == "Correct result submitted."
-    finally:
         try:
-            await env.close()
+            result = await env.reset(task=public_task_id, seed=RESET_SEED + index)
+            observation = result.observation
+            task_name = str(observation.metadata.get("task_id") or task_spec.task_id)
+            log_start(task=task_name, env=BENCHMARK, model=model_label)
+
+            for step in range(1, MAX_STEPS + 1):
+                if result.done:
+                    break
+
+                action = choose_action(
+                    observation,
+                    client=client,
+                    planner_mode=PLANNER_MODE,
+                    step=step,
+                    history=history,
+                )
+                result = await env.step(action)
+                steps_taken += 1
+                reward = float(result.reward or 0.0)
+                rewards.append(reward)
+                observation = result.observation
+                error = None
+                if reward == 0.0 and observation.status_message not in {
+                    "Correct result submitted.",
+                    "Reset the working dataframe to the full dataset.",
+                }:
+                    error = observation.status_message
+
+                log_step(
+                    step=steps_taken,
+                    action=format_action(action),
+                    reward=reward,
+                    done=result.done,
+                    error=error,
+                )
+                history.append(f"Step {step}: {format_action(action)} -> reward {reward:.2f}")
+
+                if result.done:
+                    break
+
+            final_progress = float(
+                (result.observation.metadata or {}).get("progress_ratio", sum(rewards)) if result else 0.0
+            )
+            clipped_score = bounded_task_score(final_progress)
+            success = bool(
+                result
+                and result.done
+                and result.observation.status_message == "Correct result submitted."
+                and 0.0 < clipped_score < 1.0
+            )
+        except Exception as exc:
+            run_failed = True
+            print(f"[ERROR] task={public_task_id} {exc}", file=sys.stderr, flush=True)
         finally:
-            log_end(success=success, steps=steps_taken, rewards=rewards)
+            try:
+                await env.close()
+            finally:
+                log_end(success=success, steps=steps_taken, rewards=rewards)
+
+    if run_failed:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

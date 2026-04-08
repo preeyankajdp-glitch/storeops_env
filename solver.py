@@ -9,7 +9,7 @@ from .models import StoreOpsAction, StoreOpsObservation
 
 def infer_task_id(question: str, hinted_task_id: str | None = None) -> str:
     """Infer the canonical task template from the question text."""
-    if hinted_task_id:
+    if hinted_task_id and hinted_task_id not in {"easy", "medium", "hard"}:
         return hinted_task_id
 
     patterns = [
@@ -42,7 +42,12 @@ def heuristic_plan_actions(observation: StoreOpsObservation) -> list[StoreOpsAct
     """Build a deterministic action plan from the environment question."""
     task_id = infer_task_id(
         observation.question.strip(),
-        str(observation.metadata.get("task_id", "")),
+        str(
+            observation.metadata.get(
+                "underlying_task_id",
+                observation.metadata.get("task_id", ""),
+            )
+        ),
     )
     question = observation.question.strip()
 

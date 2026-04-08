@@ -60,6 +60,11 @@ class StoreOpsEnvironment(Environment):
         "central_top_variance_stores_for_item": 0.73,
         "central_top_delta_stores_for_item": 0.89,
     }
+    _PUBLIC_TASK_SCORES = {
+        "easy": 0.21,
+        "medium": 0.43,
+        "hard": 0.67,
+    }
 
     def __init__(self):
         self._rng = random.Random()
@@ -69,6 +74,7 @@ class StoreOpsEnvironment(Environment):
         self._terminated = False
         self._score = 0.0
         self._task: TaskDefinition | None = None
+        self._public_task_id: str | None = None
         self._task_cursor = 0
         self._task_rotation: list[TaskDefinition] = []
         self._engine = self._load_engine()
@@ -79,11 +85,17 @@ class StoreOpsEnvironment(Environment):
         self,
         seed: int | None = None,
         episode_id: str | None = None,
+        task: str | None = None,
         task_id: str | None = None,
         difficulty: str | None = None,
         **_: Any,
     ) -> StoreOpsObservation:
         """Reset to a fresh analytics task."""
+        if task is not None and task_id is None and difficulty is None:
+            if task in {"easy", "medium", "hard"}:
+                difficulty = task
+            else:
+                task_id = task
         if seed is not None:
             self._rng.seed(seed)
 
@@ -93,6 +105,7 @@ class StoreOpsEnvironment(Environment):
         self._history = []
         self._terminated = False
         self._score = 0.0
+        self._public_task_id = None
         self._status_message = "Task loaded. Use analytics actions to derive the answer."
 
         if task_id is not None:
@@ -100,6 +113,7 @@ class StoreOpsEnvironment(Environment):
             if not matching:
                 raise ValueError(f"Unknown task_id: {task_id}")
             self._task = matching[0]
+            self._public_task_id = task_id
         elif difficulty is not None:
             matching = [task for task in self._task_rotation if task.difficulty == difficulty]
             if not matching:
@@ -107,6 +121,7 @@ class StoreOpsEnvironment(Environment):
             task_index = self._task_cursor % len(matching)
             self._task = matching[task_index]
             self._task_cursor += 1
+            self._public_task_id = difficulty
         elif seed is not None:
             task_index = seed % len(self._tasks)
             self._task = self._tasks[task_index]
@@ -118,7 +133,7 @@ class StoreOpsEnvironment(Environment):
         self._state = State(
             episode_id=str(uuid4()),
             step_count=0,
-            task_id=self._task.task_id,
+            task_id=self._public_task_id or self._task.task_id,
         )
         return self._build_observation(reward=0.0, done=False)
 
@@ -543,9 +558,14 @@ class StoreOpsEnvironment(Environment):
             done=done,
             reward=reward,
             metadata={
-                "task_id": task.task_id if task else "",
+                "task_id": self._public_task_id or (task.task_id if task else ""),
+                "underlying_task_id": task.task_id if task else "",
                 "difficulty": task.difficulty if task else "",
-                "score": task.grader_score if task else 0.5,
+                "score": (
+                    self._PUBLIC_TASK_SCORES.get(self._public_task_id, task.grader_score)
+                    if task
+                    else 0.5
+                ),
                 "progress_ratio": round(self._score, 4),
                 "step_count": self._state.step_count,
             },

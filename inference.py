@@ -98,9 +98,13 @@ def log_step(step: int, action: str, reward: float, done: bool, error: str | Non
     )
 
 
-def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    clipped_score = min(0.999, max(0.001, score))
     rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}", flush=True)
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={clipped_score:.3f} rewards={rewards_str}",
+        flush=True,
+    )
 
 
 def bounded_task_score(score: float) -> float:
@@ -234,6 +238,7 @@ async def main() -> None:
         rewards: List[float] = []
         steps_taken = 0
         success = False
+        clipped_score = 0.001
         history: List[str] = []
         result = None
         task_spec = get_task_spec(public_task_id)
@@ -296,7 +301,7 @@ async def main() -> None:
             try:
                 await env.close()
             finally:
-                log_end(success=success, steps=steps_taken, rewards=rewards)
+                log_end(success=success, steps=steps_taken, score=clipped_score, rewards=rewards)
 
     if run_failed:
         raise SystemExit(1)

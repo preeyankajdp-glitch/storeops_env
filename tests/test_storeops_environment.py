@@ -23,7 +23,8 @@ def test_reset_returns_question_and_preview(monkeypatch):
     assert observation.current_view
     assert observation.row_count > 0
     assert observation.difficulty in {"easy", "medium", "hard"}
-    assert 0.0 <= observation.metadata["score"] <= 1.0
+    assert 0.0 < observation.metadata["score"] < 1.0
+    assert 0.0 <= observation.metadata["progress_ratio"] <= 1.0
 
 
 def test_seeded_reset_is_reproducible(monkeypatch):
@@ -34,6 +35,17 @@ def test_seeded_reset_is_reproducible(monkeypatch):
 
     assert first.metadata["task_id"] == second.metadata["task_id"]
     assert first.question == second.question
+    assert first.metadata["score"] == second.metadata["score"]
+
+
+def test_unseeded_reset_cycles_through_distinct_tasks(monkeypatch):
+    env = _build_env(monkeypatch)
+
+    first = env.reset()
+    second = env.reset()
+    third = env.reset()
+
+    assert len({first.metadata["task_id"], second.metadata["task_id"], third.metadata["task_id"]}) == 3
 
 
 def test_solver_can_complete_multiple_task_templates(monkeypatch):
@@ -78,7 +90,8 @@ def test_wrong_submission_fails(monkeypatch):
 
     assert result.done is True
     assert result.reward == 0.0
-    assert 0.0 <= result.metadata["score"] <= 1.0
+    assert 0.0 < result.metadata["score"] < 1.0
+    assert 0.0 <= result.metadata["progress_ratio"] <= 1.0
 
 
 def test_successful_episode_rewards_stay_normalized(monkeypatch):
@@ -97,5 +110,6 @@ def test_successful_episode_rewards_stay_normalized(monkeypatch):
     assert result.done is True
     assert result.status_message == "Correct result submitted."
     assert all(0.0 <= float(reward) <= 1.0 for reward in rewards)
-    assert result.metadata["score"] == 1.0
+    assert 0.0 < result.metadata["score"] < 1.0
+    assert 0.0 < result.metadata["progress_ratio"] <= 1.0
     assert seen_difficulties <= {"easy", "medium", "hard"}

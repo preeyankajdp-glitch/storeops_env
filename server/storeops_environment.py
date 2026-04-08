@@ -27,6 +27,7 @@ class TaskDefinition:
     role: str
     category: str
     difficulty: str
+    grader_score: float
     question: str
     target_view: pd.DataFrame
 
@@ -51,6 +52,14 @@ class StoreOpsEnvironment(Environment):
         "central_top_variance_stores_for_item": 0.40,
         "central_top_delta_stores_for_item": 0.50,
     }
+    _TASK_SCORES = {
+        "store_item_qty_total": 0.21,
+        "store_top_variance_items": 0.43,
+        "central_city_breakdown": 0.47,
+        "central_top_stores_for_item": 0.67,
+        "central_top_variance_stores_for_item": 0.73,
+        "central_top_delta_stores_for_item": 0.89,
+    }
 
     def __init__(self):
         self._rng = random.Random()
@@ -60,8 +69,11 @@ class StoreOpsEnvironment(Environment):
         self._terminated = False
         self._score = 0.0
         self._task: TaskDefinition | None = None
+        self._task_cursor = 0
+        self._task_rotation: list[TaskDefinition] = []
         self._engine = self._load_engine()
         self._tasks = self._build_tasks()
+        self._task_rotation = self._build_task_rotation(self._tasks)
 
     def reset(self, seed: int | None = None) -> StoreOpsObservation:
         """Reset to a fresh analytics task."""
@@ -70,6 +82,7 @@ class StoreOpsEnvironment(Environment):
 
         self._engine = self._load_engine()
         self._tasks = self._build_tasks()
+        self._task_rotation = self._build_task_rotation(self._tasks)
         self._history = []
         self._terminated = False
         self._score = 0.0
@@ -78,7 +91,9 @@ class StoreOpsEnvironment(Environment):
             task_index = seed % len(self._tasks)
             self._task = self._tasks[task_index]
         else:
-            self._task = self._rng.choice(self._tasks)
+            task_index = self._task_cursor % len(self._task_rotation)
+            self._task = self._task_rotation[task_index]
+            self._task_cursor += 1
         self._state = State(
             episode_id=str(uuid4()),
             step_count=0,
@@ -250,6 +265,7 @@ class StoreOpsEnvironment(Environment):
                     role="Store Manager",
                     category="Stock Availability",
                     difficulty="easy",
+                    grader_score=self._TASK_SCORES["store_item_qty_total"],
                     question=(
                         f"What was the total D-1 quantity for {item_value} in {store_value} "
                         f"on {date_value}?"
@@ -283,6 +299,7 @@ class StoreOpsEnvironment(Environment):
                     role="Store Manager",
                     category="Variance",
                     difficulty="medium",
+                    grader_score=self._TASK_SCORES["store_top_variance_items"],
                     question=(
                         f"Which 5 inventory items had the highest variance quantity in "
                         f"{store_value} on {date_value}?"
@@ -317,6 +334,7 @@ class StoreOpsEnvironment(Environment):
                         role="Central Team",
                         category="Stock Availability",
                         difficulty="hard",
+                        grader_score=self._TASK_SCORES["central_top_stores_for_item"],
                         question=(
                             f"Which 5 stores had the highest D-1 quantity for {item_value} on "
                             f"{date_value}?"
@@ -340,6 +358,7 @@ class StoreOpsEnvironment(Environment):
                         role="Central Team",
                         category="Stock Availability",
                         difficulty="medium",
+                        grader_score=self._TASK_SCORES["central_city_breakdown"],
                         question=f"Show city-wise D-1 quantity for {item_value} on {date_value}.",
                         target_view=self._normalize_target(city_target),
                     )
@@ -361,6 +380,7 @@ class StoreOpsEnvironment(Environment):
                         role="Central Team",
                         category="Variance",
                         difficulty="hard",
+                        grader_score=self._TASK_SCORES["central_top_variance_stores_for_item"],
                         question=(
                             f"Which 5 stores had the highest variance quantity for {item_value} "
                             f"on {date_value}?"
@@ -412,6 +432,7 @@ class StoreOpsEnvironment(Environment):
                         role="Central Team",
                         category="Trend",
                         difficulty="hard",
+                        grader_score=self._TASK_SCORES["central_top_delta_stores_for_item"],
                         question=(
                             f"Which 5 stores had the largest increase in D-1 quantity for "
                             f"{item_value} from {date_from} to {date_to}?"
@@ -424,6 +445,17 @@ class StoreOpsEnvironment(Environment):
             raise ValueError("StoreOps environment could not generate any tasks from the dataset.")
 
         return tasks
+
+    @staticmethod
+    def _build_task_rotation(tasks: list[TaskDefinition]) -> list[TaskDefinition]:
+        rotation: list[TaskDefinition] = []
+        seen_task_ids: set[str] = set()
+        for task in tasks:
+            if task.task_id in seen_task_ids:
+                continue
+            rotation.append(task)
+            seen_task_ids.add(task.task_id)
+        return rotation or tasks
 
     def _normalize_target(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         normalized = dataframe.copy()
@@ -492,7 +524,8 @@ class StoreOpsEnvironment(Environment):
             metadata={
                 "task_id": task.task_id if task else "",
                 "difficulty": task.difficulty if task else "",
-                "score": self._score,
+                "score": task.grader_score if task else 0.5,
+                "progress_ratio": round(self._score, 4),
                 "step_count": self._state.step_count,
             },
         )

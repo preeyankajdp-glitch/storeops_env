@@ -12,7 +12,7 @@ from huggingface_hub import HfApi
 DEFAULT_VARIABLES = {
     "API_BASE_URL": "https://api.openai.com/v1",
     "MODEL_NAME": "gpt-4.1-mini",
-    "STOREOPS_PLANNER_MODE": "heuristic",
+    "STOREOPS_PLANNER_MODE": "auto",
     "STOREOPS_RESET_SEED": "11",
 }
 

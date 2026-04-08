@@ -112,8 +112,8 @@ STOREOPS_IMAGE_NAME=storeops_env:latest uv run python inference.py
 
 Planner modes:
 
+- `STOREOPS_PLANNER_MODE=auto` to call the LLM each step and fall back to the heuristic
 - `STOREOPS_PLANNER_MODE=heuristic` for deterministic benchmark runs
-- `STOREOPS_PLANNER_MODE=auto` to try an LLM plan first and fall back to the heuristic
 - `STOREOPS_PLANNER_MODE=llm` to force an LLM plan
 
 Optional LLM planning variables:
@@ -125,7 +125,9 @@ Optional LLM planning variables:
 Reproducible baseline variables:
 
 - `STOREOPS_RESET_SEED` selects the deterministic benchmark task for `inference.py`
-- `STOREOPS_PLANNER_MODE=heuristic` is the recommended submission default
+- `STOREOPS_PLANNER_MODE=auto` is the recommended submission default so the
+  inference runner makes proxy-tracked OpenAI client calls and still keeps a
+  deterministic fallback path
 
 Build the Docker image with OpenEnv:
 

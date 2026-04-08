@@ -54,7 +54,8 @@ API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 TEMPERATURE = 0.0
 MAX_TOKENS = 250
 MAX_STEPS = 8
-SCORE_EPSILON = float(os.getenv("OPENENV_SCORE_EPSILON", "0.000001"))
+MIN_VALIDATOR_SCORE = float(os.getenv("OPENENV_MIN_VALIDATOR_SCORE", "0.01"))
+MAX_VALIDATOR_SCORE = float(os.getenv("OPENENV_MAX_VALIDATOR_SCORE", "0.99"))
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
@@ -99,7 +100,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: str | Non
 
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    clipped_score = min(0.999, max(0.001, score))
+    clipped_score = min(MAX_VALIDATOR_SCORE, max(MIN_VALIDATOR_SCORE, score))
     rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
     print(
         f"[END] success={str(success).lower()} steps={steps} score={clipped_score:.3f} rewards={rewards_str}",
@@ -108,7 +109,7 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
 
 
 def bounded_task_score(score: float) -> float:
-    return min(1.0 - SCORE_EPSILON, max(SCORE_EPSILON, score))
+    return min(MAX_VALIDATOR_SCORE, max(MIN_VALIDATOR_SCORE, score))
 
 
 def _strip_code_fences(raw_text: str) -> str:
@@ -238,7 +239,7 @@ async def main() -> None:
         rewards: List[float] = []
         steps_taken = 0
         success = False
-        clipped_score = 0.001
+        clipped_score = MIN_VALIDATOR_SCORE
         history: List[str] = []
         result = None
         task_spec = get_task_spec(public_task_id)

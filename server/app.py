@@ -38,11 +38,12 @@ app = create_app(
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-_SCORE_EPSILON = 1e-6
+_MIN_VALIDATOR_SCORE = 0.01
+_MAX_VALIDATOR_SCORE = 0.99
 
 
 def _clamp_open_score(score: float) -> float:
-    return min(1.0 - _SCORE_EPSILON, max(_SCORE_EPSILON, float(score)))
+    return min(_MAX_VALIDATOR_SCORE, max(_MIN_VALIDATOR_SCORE, float(score)))
 
 
 class LandingPageMiddleware(BaseHTTPMiddleware):
@@ -78,8 +79,61 @@ class ValidatorTaskSelectionMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+class ValidatorScoreClampMiddleware(BaseHTTPMiddleware):
+    """Clamp validator-facing score-like JSON values into the safe open interval."""
+
+    _CLAMP_KEYS = {"score", "reward", "progress_ratio"}
+    _TARGET_PATHS = {"/reset", "/step", "/grader", "/grade", "/validate", "/tasks", "/task_specs"}
+
+    def _clamp_payload(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            clamped: dict[str, Any] = {}
+            for key, item in value.items():
+                if key in self._CLAMP_KEYS and isinstance(item, (int, float)):
+                    clamped[key] = _clamp_open_score(float(item))
+                else:
+                    clamped[key] = self._clamp_payload(item)
+            return clamped
+        if isinstance(value, list):
+            return [self._clamp_payload(item) for item in value]
+        return value
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path not in self._TARGET_PATHS:
+            return response
+        content_type = response.headers.get("content-type", "")
+        if "application/json" not in content_type:
+            return response
+
+        body = b""
+        async for chunk in response.body_iterator:
+            body += chunk
+
+        try:
+            payload = json.loads(body)
+        except Exception:
+            return Response(
+                content=body,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type,
+            )
+
+        clamped_payload = self._clamp_payload(payload)
+        headers = dict(response.headers)
+        headers.pop("content-length", None)
+        return Response(
+            content=json.dumps(clamped_payload),
+            status_code=response.status_code,
+            headers=headers,
+            media_type="application/json",
+        )
+
+
 app.add_middleware(LandingPageMiddleware)
 app.add_middleware(ValidatorTaskSelectionMiddleware)
+app.add_middleware(ValidatorScoreClampMiddleware)
 
 
 @lru_cache(maxsize=1)
@@ -236,7 +290,7 @@ def reset_validator_task(task: str = "easy") -> dict[str, Any]:
         observation = env.reset(task_id=task)
     return {
         "observation": observation.model_dump(),
-        "reward": _SCORE_EPSILON,
+        "reward": _MIN_VALIDATOR_SCORE,
         "done": False,
         "score": _validator_score_for_name(task),
         "info": {"task": task},

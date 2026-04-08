@@ -36,7 +36,8 @@ class StoreOpsEnvironment(Environment):
     """Multi-step analytics environment over D-1 style store ops data."""
 
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
-    _SCORE_EPSILON = 1e-6
+    _MIN_VALIDATOR_SCORE = 0.01
+    _MAX_VALIDATOR_SCORE = 0.99
     _MAX_STEPS = 8
     _ACTION_REWARD = {
         "filter_equals": 0.15,
@@ -84,7 +85,7 @@ class StoreOpsEnvironment(Environment):
 
     @classmethod
     def _clamp_open_score(cls, value: float) -> float:
-        return min(1.0 - cls._SCORE_EPSILON, max(cls._SCORE_EPSILON, float(value)))
+        return min(cls._MAX_VALIDATOR_SCORE, max(cls._MIN_VALIDATOR_SCORE, float(value)))
 
     def reset(
         self,

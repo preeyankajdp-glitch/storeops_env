@@ -107,6 +107,20 @@ def test_grader_route_honors_query_task_id():
     assert 0.0 < payload["score"] < 1.0
 
 
+def test_grader_without_task_id_follows_latest_reset_task():
+    client = TestClient(app)
+
+    reset_response = client.post("/reset", json={"task_id": "medium"})
+    assert reset_response.status_code == 200
+
+    grader_response = client.get("/grader")
+
+    assert grader_response.status_code == 200
+    payload = grader_response.json()
+    assert payload["task_id"] == "medium"
+    assert 0.0 < payload["score"] < 1.0
+
+
 def test_validate_route_exposes_task_summary():
     client = TestClient(app)
 
@@ -140,6 +154,8 @@ def test_get_reset_accepts_validator_task_names():
     payload = response.json()
     assert payload["done"] is False
     assert payload["info"]["task"] == "medium"
+    assert 0.0 < payload["reward"] < 1.0
+    assert 0.0 < payload["score"] < 1.0
 
 
 def test_post_reset_accepts_public_task_ids():

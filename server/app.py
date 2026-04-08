@@ -1,6 +1,7 @@
 """FastAPI application for the StoreOps analytics environment."""
 
 from functools import lru_cache
+import json
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,12 @@ app = create_app(
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+_SCORE_EPSILON = 1e-6
+
+
+def _clamp_open_score(score: float) -> float:
+    return min(1.0 - _SCORE_EPSILON, max(_SCORE_EPSILON, float(score)))
+
 
 class LandingPageMiddleware(BaseHTTPMiddleware):
     """Route Space landing URLs to the custom office UI instead of the generic OpenEnv web page."""
@@ -49,7 +56,30 @@ class LandingPageMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+class ValidatorTaskSelectionMiddleware(BaseHTTPMiddleware):
+    """Track the active validator task when POST /reset is used."""
+
+    async def dispatch(self, request, call_next):
+        global _validator_current_task
+
+        if request.method == "POST" and request.url.path == "/reset":
+            try:
+                raw_body = await request.body()
+                if raw_body:
+                    payload = json.loads(raw_body)
+                    requested_task = (
+                        payload.get("task_id") or payload.get("task") or payload.get("difficulty")
+                    )
+                    if requested_task in validator_task_names():
+                        _validator_current_task = requested_task
+            except Exception:
+                pass
+
+        return await call_next(request)
+
+
 app.add_middleware(LandingPageMiddleware)
+app.add_middleware(ValidatorTaskSelectionMiddleware)
 
 
 @lru_cache(maxsize=1)
@@ -65,37 +95,39 @@ def benchmark_tasks() -> list[dict[str, Any]]:
             "id": "store_item_qty_total",
             "description": "Easy: total D-1 quantity for one inventory item in one store.",
             "difficulty": "easy",
-            "score": StoreOpsEnvironment._TASK_SCORES["store_item_qty_total"],
+            "score": _clamp_open_score(StoreOpsEnvironment._TASK_SCORES["store_item_qty_total"]),
         },
         {
             "id": "store_top_variance_items",
             "description": "Medium: top 5 inventory items by variance in a store.",
             "difficulty": "medium",
-            "score": StoreOpsEnvironment._TASK_SCORES["store_top_variance_items"],
+            "score": _clamp_open_score(StoreOpsEnvironment._TASK_SCORES["store_top_variance_items"]),
         },
         {
             "id": "central_city_breakdown",
             "description": "Medium: city-wise D-1 quantity breakdown for an inventory item.",
             "difficulty": "medium",
-            "score": StoreOpsEnvironment._TASK_SCORES["central_city_breakdown"],
+            "score": _clamp_open_score(StoreOpsEnvironment._TASK_SCORES["central_city_breakdown"]),
         },
         {
             "id": "central_top_stores_for_item",
             "description": "Hard: top 5 stores by D-1 quantity for an inventory item.",
             "difficulty": "hard",
-            "score": StoreOpsEnvironment._TASK_SCORES["central_top_stores_for_item"],
+            "score": _clamp_open_score(StoreOpsEnvironment._TASK_SCORES["central_top_stores_for_item"]),
         },
         {
             "id": "central_top_variance_stores_for_item",
             "description": "Hard: top 5 stores by variance quantity for an inventory item.",
             "difficulty": "hard",
-            "score": StoreOpsEnvironment._TASK_SCORES["central_top_variance_stores_for_item"],
+            "score": _clamp_open_score(
+                StoreOpsEnvironment._TASK_SCORES["central_top_variance_stores_for_item"]
+            ),
         },
         {
             "id": "central_top_delta_stores_for_item",
             "description": "Hard: top 5 stores by D-1 quantity increase across two dates.",
             "difficulty": "hard",
-            "score": StoreOpsEnvironment._TASK_SCORES["central_top_delta_stores_for_item"],
+            "score": _clamp_open_score(StoreOpsEnvironment._TASK_SCORES["central_top_delta_stores_for_item"]),
         },
     ]
 
@@ -110,7 +142,7 @@ def _validator_score_for_name(name: str) -> float:
         "medium": 0.43,
         "hard": 0.67,
     }
-    return difficulty_score.get(name, 0.43)
+    return _clamp_open_score(difficulty_score.get(name, 0.43))
 
 
 _validator_current_task = "easy"
@@ -120,7 +152,7 @@ def _task_score(task_id: str | None) -> tuple[str, float]:
     resolved_task_id = task_id or _validator_current_task
     if resolved_task_id in validator_task_names():
         return resolved_task_id, _validator_score_for_name(resolved_task_id)
-    return resolved_task_id, StoreOpsEnvironment._TASK_SCORES.get(resolved_task_id, 0.5)
+    return resolved_task_id, _clamp_open_score(StoreOpsEnvironment._TASK_SCORES.get(resolved_task_id, 0.5))
 
 
 @app.get("/", include_in_schema=False)
@@ -204,8 +236,9 @@ def reset_validator_task(task: str = "easy") -> dict[str, Any]:
         observation = env.reset(task_id=task)
     return {
         "observation": observation.model_dump(),
-        "reward": 0.0,
+        "reward": _SCORE_EPSILON,
         "done": False,
+        "score": _validator_score_for_name(task),
         "info": {"task": task},
     }
 
@@ -242,7 +275,7 @@ def grade_task(task_id: str) -> dict[str, Any]:
     if task_meta is None:
         return {
             "task_id": resolved_task_id,
-            "score": 0.43,
+            "score": _clamp_open_score(0.43),
             "graded": False,
             "error": "Unknown task_id",
         }

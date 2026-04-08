@@ -24,7 +24,7 @@ def test_reset_returns_question_and_preview(monkeypatch):
     assert observation.row_count > 0
     assert observation.difficulty in {"easy", "medium", "hard"}
     assert 0.0 < observation.metadata["score"] < 1.0
-    assert 0.0 <= observation.metadata["progress_ratio"] <= 1.0
+    assert 0.0 < observation.metadata["progress_ratio"] < 1.0
 
 
 def test_seeded_reset_is_reproducible(monkeypatch):
@@ -91,7 +91,7 @@ def test_wrong_submission_fails(monkeypatch):
     assert result.done is True
     assert result.reward == 0.0
     assert 0.0 < result.metadata["score"] < 1.0
-    assert 0.0 <= result.metadata["progress_ratio"] <= 1.0
+    assert 0.0 < result.metadata["progress_ratio"] < 1.0
 
 
 def test_successful_episode_rewards_stay_normalized(monkeypatch):
@@ -111,5 +111,5 @@ def test_successful_episode_rewards_stay_normalized(monkeypatch):
     assert result.status_message == "Correct result submitted."
     assert all(0.0 <= float(reward) <= 1.0 for reward in rewards)
     assert 0.0 < result.metadata["score"] < 1.0
-    assert 0.0 < result.metadata["progress_ratio"] <= 1.0
+    assert 0.0 < result.metadata["progress_ratio"] < 1.0
     assert seen_difficulties <= {"easy", "medium", "hard"}

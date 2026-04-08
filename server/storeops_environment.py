@@ -36,6 +36,7 @@ class StoreOpsEnvironment(Environment):
     """Multi-step analytics environment over D-1 style store ops data."""
 
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
+    _SCORE_EPSILON = 1e-6
     _MAX_STEPS = 8
     _ACTION_REWARD = {
         "filter_equals": 0.15,
@@ -80,6 +81,10 @@ class StoreOpsEnvironment(Environment):
         self._engine = self._load_engine()
         self._tasks = self._build_tasks()
         self._task_rotation = self._build_task_rotation(self._tasks)
+
+    @classmethod
+    def _clamp_open_score(cls, value: float) -> float:
+        return min(1.0 - cls._SCORE_EPSILON, max(cls._SCORE_EPSILON, float(value)))
 
     def reset(
         self,
@@ -227,7 +232,7 @@ class StoreOpsEnvironment(Environment):
             self._status_message = f"Unsupported tool: {action.tool}"
 
         self._history.append(self._format_action(action))
-        self._score = min(1.0, round(self._score + reward, 4))
+        self._score = self._clamp_open_score(round(self._score + reward, 4))
 
         if not done and self._state.step_count >= self._MAX_STEPS:
             reward = 0.0
@@ -564,12 +569,12 @@ class StoreOpsEnvironment(Environment):
                 "task_id": self._public_task_id or (task.task_id if task else ""),
                 "underlying_task_id": task.task_id if task else "",
                 "difficulty": task.difficulty if task else "",
-                "score": (
+                "score": self._clamp_open_score(
                     self._PUBLIC_TASK_SCORES.get(self._public_task_id, task.grader_score)
                     if task
                     else 0.5
                 ),
-                "progress_ratio": round(self._score, 4),
+                "progress_ratio": self._clamp_open_score(round(self._score, 4)),
                 "step_count": self._state.step_count,
             },
         )

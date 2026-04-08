@@ -1,39 +1,130 @@
-spec_version: 1
 name: storeops_env
-type: space
-runtime: fastapi
-app: server.app:app
-port: 8000
-description: StoreOps OpenEnv benchmark for D-1 store analytics.
+version: "1.0.0"
+description: >
+  A StoreOps analytics benchmark environment for D-1 store inventory and variance
+  analysis. An agent receives business questions about store operations data and
+  must apply structured dataframe actions to answer them correctly.
+author: preeyankajdp
+tags:
+  - openenv
+  - analytics
+  - inventory
+  - operations
+  - dataframe
+
+observation_space:
+  type: object
+  description: Current analytics question, dataframe preview, and task metadata.
+  fields:
+    question:
+      type: string
+    role:
+      type: string
+    category:
+      type: string
+    difficulty:
+      type: string
+    available_dimensions:
+      type: array
+    available_metrics:
+      type: array
+    current_view:
+      type: array
+    row_count:
+      type: integer
+    history:
+      type: array
+    steps_remaining:
+      type: integer
+    status_message:
+      type: string
+    metadata:
+      type: object
+
+action_space:
+  type: object
+  description: Structured dataframe operations available to the agent.
+  actions:
+    - name: filter_equals
+      params:
+        column: string
+        value: string
+    - name: group_aggregate
+      params:
+        group_by: string
+        metric: string
+        aggregation: "enum[sum, mean, count, max, min]"
+    - name: compare_dates
+      params:
+        group_by: string
+        metric: string
+        date_from: string
+        date_to: string
+    - name: sort_limit
+      params:
+        metric: string
+        descending: boolean
+        limit: integer
+    - name: reset_view
+      params: {}
+    - name: submit
+      params: {}
+
 tasks:
-  - id: store_item_qty_total
-    description: "Easy: total D-1 quantity for one inventory item in one store."
+  - id: easy
+    name: Single Store Quantity Lookup
     difficulty: easy
-    success_threshold: 0.2
-  - id: store_top_variance_items
-    description: "Medium: top 5 inventory items by variance in a store."
+    description: >
+      Answer a simple D-1 quantity question for one inventory item in one store.
+      This requires precise filtering and a single aggregation.
+    max_steps: 8
+    success_threshold: 0.20
+
+  - id: medium
+    name: Variance or City Breakdown
     difficulty: medium
-    success_threshold: 0.4
-  - id: central_city_breakdown
-    description: "Medium: city-wise D-1 quantity breakdown for an inventory item."
-    difficulty: medium
-    success_threshold: 0.45
-  - id: central_top_stores_for_item
-    description: "Hard: top 5 stores by D-1 quantity for an inventory item."
+    description: >
+      Answer a grouped analytics question such as the highest variance items in a
+      store or a city-wise quantity breakdown for an inventory item.
+    max_steps: 8
+    success_threshold: 0.40
+
+  - id: hard
+    name: Cross Store Ranking
     difficulty: hard
-    success_threshold: 0.65
-  - id: central_top_variance_stores_for_item
-    description: "Hard: top 5 stores by variance quantity for an inventory item."
-    difficulty: hard
-    success_threshold: 0.7
-  - id: central_top_delta_stores_for_item
-    description: "Hard: top 5 stores by D-1 quantity increase across two dates."
-    difficulty: hard
-    success_threshold: 0.85
+    description: >
+      Answer a harder ranking or comparison question such as top stores for an
+      item, highest variance stores, or a cross-date increase task.
+    max_steps: 8
+    success_threshold: 0.60
+
+reward:
+  type: shaped
+  description: >
+    Partial credit is awarded for valid intermediate dataframe operations and a
+    larger final reward is awarded on correct submission. Public validator-facing
+    task scores are kept strictly inside the open interval (0, 1).
+
+scoring:
+  reward_range: [0.0, 1.0]
+  success_threshold: 0.5
+  score_formula: mean(step_rewards_with_final_submission_bonus)
+
 endpoints:
+  health: GET /health
   reset: POST /reset
   step: POST /step
   state: GET /state
   tasks: GET /tasks
   grader: GET /grader
+  grade: GET /grade
   validate: GET /validate
+
+runtime:
+  port: 8000
+  framework: fastapi
+
+constraints:
+  max_runtime_seconds: 1200
+  max_memory_gb: 8
+  max_vcpu: 2

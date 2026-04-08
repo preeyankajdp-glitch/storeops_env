@@ -96,6 +96,17 @@ def test_grader_route_returns_strict_in_range_score():
     assert 0.0 < payload["score"] < 1.0
 
 
+def test_grader_route_honors_query_task_id():
+    client = TestClient(app)
+
+    response = client.get("/grader", params={"task_id": "hard"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task_id"] == "hard"
+    assert 0.0 < payload["score"] < 1.0
+
+
 def test_validate_route_exposes_task_summary():
     client = TestClient(app)
 
@@ -129,3 +140,13 @@ def test_get_reset_accepts_validator_task_names():
     payload = response.json()
     assert payload["done"] is False
     assert payload["info"]["task"] == "medium"
+
+
+def test_post_reset_accepts_public_task_ids():
+    client = TestClient(app)
+
+    response = client.post("/reset", json={"task_id": "hard"})
+
+    assert response.status_code == 200
+    payload = response.json()["observation"]
+    assert payload["difficulty"] == "hard"

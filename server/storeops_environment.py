@@ -96,6 +96,9 @@ class StoreOpsEnvironment(Environment):
                 difficulty = task
             else:
                 task_id = task
+        if task_id in {"easy", "medium", "hard"} and difficulty is None:
+            difficulty = task_id
+            task_id = None
         if seed is not None:
             self._rng.seed(seed)
 

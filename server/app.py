@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, Depends, Response
+from fastapi import Body, Depends, Query, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -257,20 +257,28 @@ def grade_task(task_id: str) -> dict[str, Any]:
 
 @app.get("/grader")
 @app.post("/grader")
-def grade_current_task(payload: dict[str, Any] | None = Body(default=None)) -> dict[str, Any]:
+def grade_current_task(
+    task_id: str | None = Query(default=None),
+    task: str | None = Query(default=None),
+    payload: dict[str, Any] | None = Body(default=None),
+) -> dict[str, Any]:
     """Simple validator-friendly grader endpoint."""
-    task_id = None
+    requested_task = task_id or task
     if payload:
-        task_id = payload.get("task_id") or payload.get("task")
-    resolved_task_id, score = _task_score(task_id)
+        requested_task = payload.get("task_id") or payload.get("task") or requested_task
+    resolved_task_id, score = _task_score(requested_task)
     return {"score": score, "task_id": resolved_task_id}
 
 
 @app.get("/grade")
 @app.post("/grade")
-def grade_current_task_alias(payload: dict[str, Any] | None = Body(default=None)) -> dict[str, Any]:
+def grade_current_task_alias(
+    task_id: str | None = Query(default=None),
+    task: str | None = Query(default=None),
+    payload: dict[str, Any] | None = Body(default=None),
+) -> dict[str, Any]:
     """Alias used by some validator implementations."""
-    return grade_current_task(payload)
+    return grade_current_task(task_id=task_id, task=task, payload=payload)
 
 
 @app.get("/grade/{task_id}")
